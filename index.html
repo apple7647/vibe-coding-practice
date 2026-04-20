@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>待办事项</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef7fb;
+      --panel: #ffffff;
+      --text: #16313f;
+      --muted: #647982;
+      --line: #d6e6ed;
+      --blue: #2786c8;
+      --blue-hover: #1d6fa8;
+      --green: #3a9f6f;
+      --coral: #db5b57;
+      --shadow: 0 14px 34px rgba(34, 87, 111, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      background:
+        linear-gradient(135deg, rgba(39, 134, 200, 0.18), rgba(58, 159, 111, 0.14)),
+        var(--bg);
+      background-attachment: fixed;
+      background-position: center;
+      background-size: cover;
+      color: var(--text);
+    }
+
+    body.has-custom-background {
+      background-image: var(--custom-bg-image);
+    }
+
+    .app-shell {
+      width: min(94vw, 920px);
+      margin: 0 auto;
+      padding: 48px 0;
+    }
+
+    .app-panel {
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(214, 230, 237, 0.58);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .app-titlebar {
+      padding: 28px 28px 22px;
+    }
+
+    .background-actions {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding: 5px;
+      border-radius: 8px;
+      background: transparent;
+    }
+
+    .background-actions .secondary-button {
+      padding: 7px 9px;
+      font-size: 14px;
+      color: #3f4b52;
+    }
+
+    .app-titlebar h1 {
+      margin: 0;
+      color: #ffffff;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      text-shadow: 0 2px 10px rgba(22, 49, 63, 0.36);
+    }
+
+    .todo-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 118px 138px 118px 130px auto;
+      gap: 12px;
+      padding: 24px 28px 18px;
+    }
+
+    .todo-input,
+    .search-input,
+    .list-name-input,
+    .date-input,
+    .due-date-input,
+    .repeat-input,
+    .repeat-select,
+    .list-input,
+    .list-select,
+    .list-filter-input,
+    .priority-input,
+    .priority-select {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px 14px;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+      outline: none;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .todo-input {
+      height: 48px;
+      min-height: 48px;
+      line-height: 24px;
+      resize: vertical;
+      padding-top: 11px;
+      padding-bottom: 11px;
+      overflow-y: hidden;
+      text-align: left;
+    }
+
+    .todo-input:focus,
+    .search-input:focus,
+    .list-name-input:focus,
+    .date-input:focus,
+    .due-date-input:focus,
+    .repeat-input:focus,
+    .repeat-select:focus,
+    .list-input:focus,
+    .list-select:focus,
+    .list-filter-input:focus,
+    .priority-input:focus,
+    .priority-select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(39, 134, 200, 0.16);
+    }
+
+    .primary-button,
+    .secondary-button,
+    .delete-button {
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font: inherit;
+      letter-spacing: 0;
+      transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .primary-button {
+      min-width: 104px;
+      padding: 13px 18px;
+      background: var(--blue);
+      color: #ffffff;
+      box-shadow: 0 8px 18px rgba(39, 134, 200, 0.22);
+    }
+
+    .primary-button:hover,
+    .primary-button:focus-visible {
+      background: var(--blue-hover);
+      transform: translateY(-1px);
+    }
+
+    .secondary-button {
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid rgba(39, 134, 200, 0.16);
+      color: var(--blue-hover);
+    }
+
+    .secondary-button:hover,
+    .secondary-button:focus-visible {
+      background: rgba(39, 134, 200, 0.16);
+    }
+
+    .secondary-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .tool-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 0 28px 22px;
+    }
+
+    .filter-panel,
+    .list-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      grid-column: 1 / -1;
+    }
+
+    .filter-button.active {
+      background: var(--blue);
+      color: #ffffff;
+      box-shadow: 0 6px 16px rgba(39, 134, 200, 0.2);
+    }
+
+    .list-name-input,
+    .list-filter-input {
+      width: min(100%, 210px);
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .background-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 0 28px 22px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: rgba(248, 252, 254, 0.68);
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .todo-section {
+      padding: 0 28px 26px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 0 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-header h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    .section-header span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .todo-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .todo-item {
+      display: grid;
+      grid-template-columns: auto auto 132px minmax(0, 1fr) 88px 70px 78px auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 58px;
+      padding: 12px 10px;
+      border-top: 1px solid var(--line);
+      border-left: 4px solid transparent;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    .todo-item.dragging {
+      opacity: 0.55;
+    }
+
+    .todo-item.entering {
+      animation: taskFadeIn 220ms ease both;
+    }
+
+    .todo-item.removing {
+      animation: taskSlideOut 220ms ease forwards;
+      pointer-events: none;
+    }
+
+    .todo-item.priority-high {
+      border-left-color: var(--coral);
+    }
+
+    .todo-item.priority-medium {
+      border-left-color: var(--blue);
+    }
+
+    .todo-item.priority-low {
+      border-left-color: var(--green);
+    }
+
+    .todo-item.overdue.priority-high {
+      background: rgba(219, 91, 87, 0.12);
+    }
+
+    .todo-item.overdue.priority-medium {
+      background: rgba(39, 134, 200, 0.12);
+    }
+
+    .todo-item.overdue.priority-low {
+      background: rgba(58, 159, 111, 0.12);
+    }
+
+    .todo-item:first-child {
+      border-top: 0;
+    }
+
+    .todo-checkbox {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--green);
+      cursor: pointer;
+    }
+
+    .drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid rgba(39, 134, 200, 0.32);
+      border-radius: 8px;
+      background: rgba(39, 134, 200, 0.1);
+      color: var(--muted);
+      cursor: grab;
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 30px;
+      text-align: center;
+      user-select: none;
+    }
+
+    .drag-handle::before {
+      content: "";
+      color: var(--blue-hover);
+      font-size: 16px;
+      letter-spacing: 1px;
+    }
+
+    .drag-handle:hover,
+    .drag-handle:focus-visible {
+      color: var(--blue-hover);
+      background: rgba(39, 134, 200, 0.18);
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .todo-text {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: text;
+      font: inherit;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.5;
+      letter-spacing: 0;
+      padding: 6px 0;
+      text-align: left;
+    }
+
+    .todo-text:focus-visible {
+      outline: 3px solid rgba(39, 134, 200, 0.22);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    .priority-select,
+    .repeat-select,
+    .list-select {
+      padding: 8px 8px;
+      font-size: 14px;
+    }
+
+    .date-input,
+    .due-date-input {
+      padding: 8px 6px;
+      font-size: 14px;
+    }
+
+    .priority-select.priority-high {
+      border-color: rgba(219, 91, 87, 0.5);
+      color: #a73532;
+      background: rgba(219, 91, 87, 0.08);
+    }
+
+    .priority-select.priority-medium {
+      border-color: rgba(39, 134, 200, 0.5);
+      color: var(--blue-hover);
+      background: rgba(39, 134, 200, 0.08);
+    }
+
+    .priority-select.priority-low {
+      border-color: rgba(58, 159, 111, 0.5);
+      color: #24744e;
+      background: rgba(58, 159, 111, 0.08);
+    }
+
+    .edit-input {
+      width: 100%;
+      min-width: 0;
+      min-height: 42px;
+      border: 1px solid var(--blue);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--text);
+      font: inherit;
+      line-height: 1.5;
+      outline: none;
+      resize: vertical;
+      box-shadow: 0 0 0 4px rgba(39, 134, 200, 0.14);
+    }
+
+    .todo-item.completed .todo-text {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    .delete-button {
+      min-width: 52px;
+      padding: 8px 10px;
+      background: rgba(219, 91, 87, 0.12);
+      color: #a73532;
+      justify-self: end;
+    }
+
+    .delete-button:hover,
+    .delete-button:focus-visible {
+      background: rgba(219, 91, 87, 0.2);
+    }
+
+    .empty-state {
+      margin: 0;
+      padding: 14px 0;
+      color: var(--muted);
+      text-align: left;
+      line-height: 1.6;
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .empty-state.hidden {
+      display: none;
+    }
+
+    @keyframes taskFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes taskSlideOut {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      to {
+        opacity: 0;
+        transform: translateX(28px);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .app-shell {
+        width: 100%;
+        padding: 0;
+      }
+
+      .app-panel {
+        min-height: 100vh;
+        border: 0;
+        border-radius: 0;
+      }
+
+      .app-titlebar,
+      .todo-form,
+      .tool-panel,
+      .stats,
+      .todo-section {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .app-titlebar h1 {
+        font-size: 26px;
+      }
+
+      .todo-form {
+        grid-template-columns: 1fr;
+      }
+
+      .tool-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .primary-button {
+        width: 100%;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .todo-item {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .drag-handle {
+        display: none;
+      }
+
+      .due-date-input {
+        grid-column: 2;
+        width: min(100%, 180px);
+      }
+
+      .todo-text {
+        grid-column: 2;
+      }
+
+      .priority-select {
+        grid-column: 2;
+        width: min(100%, 160px);
+      }
+
+      .repeat-select,
+      .list-select {
+        grid-column: 2;
+        width: min(100%, 180px);
+      }
+
+      .section-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .delete-button {
+        grid-column: 2;
+        justify-self: start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .background-actions {
+        position: static;
+        justify-content: flex-end;
+        padding: 14px 18px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background-actions" aria-label="背景设置">
+    <label class="secondary-button" for="background-input">上传背景</label>
+    <input class="background-input" id="background-input" type="file" accept="image/*">
+    <button class="secondary-button" id="reset-background" type="button">恢复背景</button>
+  </div>
+
+  <main class="app-shell">
+    <header class="app-titlebar">
+      <h1 id="app-title">待办事项</h1>
+    </header>
+
+    <section class="app-panel" aria-labelledby="app-title">
+      <form class="todo-form" id="todo-form">
+        <label class="sr-only" for="todo-input">任务内容</label>
+        <textarea class="todo-input" id="todo-input" placeholder="量力而行就可以" autocomplete="off" maxlength="240" required></textarea>
+        <label class="sr-only" for="priority-input">任务优先级</label>
+        <select class="priority-input" id="priority-input" aria-label="任务优先级">
+          <option value="high">高优先级</option>
+          <option value="medium" selected>中优先级</option>
+          <option value="low">低优先级</option>
+        </select>
+        <label class="sr-only" for="due-date-input">截止日期</label>
+        <input class="date-input" id="due-date-input" type="date" aria-label="截止日期" required>
+        <label class="sr-only" for="repeat-input">重复规则</label>
+        <select class="repeat-input" id="repeat-input" aria-label="重复规则">
+          <option value="none" selected>不重复</option>
+          <option value="daily">每天</option>
+          <option value="weekly">每周</option>
+          <option value="monthly">每月</option>
+        </select>
+        <label class="sr-only" for="task-list-input">所属列表</label>
+        <select class="list-input" id="task-list-input" aria-label="所属列表"></select>
+        <button class="primary-button" type="submit">添加任务</button>
+      </form>
+
+      <section class="tool-panel" aria-label="任务工具">
+        <label class="sr-only" for="search-input">搜索任务</label>
+        <input class="search-input" id="search-input" type="search" placeholder="搜索任务内容" autocomplete="off">
+        <button class="secondary-button" id="export-todos" type="button">导出任务</button>
+        <button class="secondary-button" id="reminder-toggle" type="button">开启提醒</button>
+        <div class="filter-panel" aria-label="日期筛选">
+          <button class="secondary-button filter-button active" type="button" data-filter="all">全部</button>
+          <button class="secondary-button filter-button" type="button" data-filter="today">今天</button>
+          <button class="secondary-button filter-button" type="button" data-filter="next7">未来 7 天</button>
+          <button class="secondary-button filter-button" type="button" data-filter="overdue">已过期</button>
+        </div>
+        <div class="list-panel" aria-label="列表管理">
+          <label class="sr-only" for="list-filter-input">筛选列表</label>
+          <select class="list-filter-input" id="list-filter-input" aria-label="筛选列表"></select>
+          <button class="secondary-button" id="delete-list" type="button">删除列表</button>
+          <label class="sr-only" for="list-name-input">新列表名称</label>
+          <input class="list-name-input" id="list-name-input" type="text" maxlength="24">
+          <button class="secondary-button" id="add-list" type="button">创建列表</button>
+        </div>
+      </section>
+
+      <section class="stats" aria-label="任务统计">
+        <div class="stat">
+          <span>未完成</span>
+          <strong id="active-count">0</strong>
+        </div>
+        <div class="stat">
+          <span>已完成</span>
+          <strong id="completed-count">0</strong>
+        </div>
+      </section>
+
+      <section class="todo-section" aria-labelledby="active-title">
+        <div class="section-header">
+          <div>
+            <h2 id="active-title">未完成</h2>
+            <span>正在处理的任务</span>
+          </div>
+        </div>
+        <ul class="todo-list" id="active-list" aria-label="未完成任务列表"></ul>
+        <p class="empty-state" id="active-empty">暂时没有未完成任务。</p>
+      </section>
+
+      <section class="todo-section" aria-labelledby="completed-title">
+        <div class="section-header">
+          <div>
+            <h2 id="completed-title">已完成归档</h2>
+            <span>勾选后自动移动到这里</span>
+          </div>
+          <button class="secondary-button" id="clear-completed" type="button">清空已完成</button>
+        </div>
+        <ul class="todo-list" id="completed-list" aria-label="已完成任务列表"></ul>
+        <p class="empty-state" id="completed-empty">暂时没有已完成任务。</p>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "fresh-blue-todos";
+    const BACKGROUND_KEY = "fresh-blue-todos-background";
+    const LISTS_KEY = "fresh-blue-todo-lists";
+    const REMINDER_DATE_KEY = "fresh-blue-todos-last-reminder-date";
+    const DEFAULT_LIST_ID = "default";
+    const PRIORITY_LABELS = {
+      high: "高",
+      medium: "中",
+      low: "低"
+    };
+    const REPEAT_LABELS = {
+      none: "不重复",
+      daily: "每天",
+      weekly: "每周",
+      monthly: "每月"
+    };
+    const PRIORITY_ORDER = {
+      high: 0,
+      medium: 1,
+      low: 2
+    };
+
+    const form = document.querySelector("#todo-form");
+    const input = document.querySelector("#todo-input");
+    const priorityInput = document.querySelector("#priority-input");
+    const dueDateInput = document.querySelector("#due-date-input");
+    const repeatInput = document.querySelector("#repeat-input");
+    const taskListInput = document.querySelector("#task-list-input");
+    const searchInput = document.querySelector("#search-input");
+    const exportTodosButton = document.querySelector("#export-todos");
+    const reminderToggleButton = document.querySelector("#reminder-toggle");
+    const filterButtons = document.querySelectorAll(".filter-button");
+    const listFilterInput = document.querySelector("#list-filter-input");
+    const listNameInput = document.querySelector("#list-name-input");
+    const addListButton = document.querySelector("#add-list");
+    const deleteListButton = document.querySelector("#delete-list");
+    const backgroundInput = document.querySelector("#background-input");
+    const resetBackgroundButton = document.querySelector("#reset-background");
+    const activeList = document.querySelector("#active-list");
+    const completedList = document.querySelector("#completed-list");
+    const activeCount = document.querySelector("#active-count");
+    const completedCount = document.querySelector("#completed-count");
+    const activeEmpty = document.querySelector("#active-empty");
+    const completedEmpty = document.querySelector("#completed-empty");
+    const clearCompletedButton = document.querySelector("#clear-completed");
+
+    let lists = loadLists();
+    let todos = loadTodos();
+    let searchTerm = "";
+    let dateFilters = ["all"];
+    let listFilter = "all";
+    let draggedTodoId = "";
+    let editingTodoId = "";
+    let activeEditInput = null;
+    let addedTodoId = "";
+
+    function getToday() {
+      return new Date().toLocaleDateString("en-CA");
+    }
+
+    function parseDate(date) {
+      return new Date(`${date}T00:00:00`);
+    }
+
+    function formatDate(date) {
+      return date.toLocaleDateString("en-CA");
+    }
+
+    function addDays(date, days) {
+      const next = parseDate(date);
+      next.setDate(next.getDate() + days);
+      return formatDate(next);
+    }
+
+    function addMonths(date, months) {
+      const next = parseDate(date);
+      next.setMonth(next.getMonth() + months);
+      return formatDate(next);
+    }
+
+    function loadLists() {
+      try {
+        const savedLists = JSON.parse(localStorage.getItem(LISTS_KEY)) || [];
+        const normalizedLists = savedLists.filter((list) => list.id && list.name);
+        const hasDefaultList = normalizedLists.some((list) => list.id === DEFAULT_LIST_ID);
+
+        return hasDefaultList
+          ? normalizedLists
+          : [{ id: DEFAULT_LIST_ID, name: "默认" }, ...normalizedLists];
+      } catch {
+        return [{ id: DEFAULT_LIST_ID, name: "默认" }];
+      }
+    }
+
+    function saveLists() {
+      localStorage.setItem(LISTS_KEY, JSON.stringify(lists));
+    }
+
+    function loadTodos() {
+      try {
+        const savedTodos = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        const listIds = lists.map((list) => list.id);
+
+        return savedTodos.map((todo) => ({
+          ...todo,
+          priority: todo.priority || "medium",
+          dueDate: todo.dueDate || getToday(),
+          order: Number.isFinite(todo.order) ? todo.order : Date.now(),
+          repeat: todo.repeat || "none",
+          listId: listIds.includes(todo.listId) ? todo.listId : DEFAULT_LIST_ID
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    function saveTodos() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    }
+
+    function createTodo(text, priority, dueDate, repeat, listId) {
+      return {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        text,
+        priority,
+        dueDate,
+        repeat,
+        listId,
+        order: Date.now(),
+        completed: false
+      };
+    }
+
+    function getTodo(id) {
+      return todos.find((todo) => todo.id === id);
+    }
+
+    function commitEdit(id, value, fallback) {
+      const text = value.trim() || fallback;
+
+      todos = todos.map((todo) => (
+        todo.id === id
+          ? { ...todo, text }
+          : todo
+      ));
+
+      editingTodoId = "";
+      activeEditInput = null;
+      saveTodos();
+      renderTodos();
+    }
+
+    function saveActiveEdit() {
+      if (!editingTodoId || !activeEditInput) {
+        return;
+      }
+
+      const todo = getTodo(editingTodoId);
+
+      if (!todo) {
+        editingTodoId = "";
+        activeEditInput = null;
+        return;
+      }
+
+      commitEdit(todo.id, activeEditInput.value, todo.text);
+    }
+
+    function applyBackground(imageData) {
+      if (imageData) {
+        document.body.classList.add("has-custom-background");
+        document.body.style.setProperty("--custom-bg-image", `url("${imageData}")`);
+        return;
+      }
+
+      document.body.classList.remove("has-custom-background");
+      document.body.style.removeProperty("--custom-bg-image");
+    }
+
+    function loadBackground() {
+      applyBackground(localStorage.getItem(BACKGROUND_KEY));
+    }
+
+    function updateTodoPriority(id, priority) {
+      todos = todos.map((todo) => (
+        todo.id === id
+          ? { ...todo, priority }
+          : todo
+      ));
+
+      saveTodos();
+      renderTodos();
+    }
+
+    function updateTodoDueDate(id, dueDate) {
+      todos = todos.map((todo) => (
+        todo.id === id
+          ? { ...todo, dueDate }
+          : todo
+      ));
+
+      saveTodos();
+      renderTodos();
+    }
+
+    function updateTodoRepeat(id, repeat) {
+      todos = todos.map((todo) => (
+        todo.id === id
+          ? { ...todo, repeat }
+          : todo
+      ));
+
+      saveTodos();
+      renderTodos();
+    }
+
+    function updateTodoList(id, listId) {
+      todos = todos.map((todo) => (
+        todo.id === id
+          ? { ...todo, listId }
+          : todo
+      ));
+
+      saveTodos();
+      renderTodos();
+    }
+
+    function getListName(listId) {
+      return lists.find((list) => list.id === listId)?.name || "默认";
+    }
+
+    function renderListOptions() {
+      taskListInput.innerHTML = "";
+      listFilterInput.innerHTML = "";
+
+      const allOption = document.createElement("option");
+      allOption.value = "all";
+      allOption.textContent = "全部列表";
+      listFilterInput.appendChild(allOption);
+
+      lists.forEach((list) => {
+        const taskOption = document.createElement("option");
+        taskOption.value = list.id;
+        taskOption.textContent = list.name;
+        taskListInput.appendChild(taskOption);
+
+        const filterOption = document.createElement("option");
+        filterOption.value = list.id;
+        filterOption.textContent = list.name;
+        listFilterInput.appendChild(filterOption);
+      });
+
+      taskListInput.value = taskListInput.value || DEFAULT_LIST_ID;
+      listFilterInput.value = listFilter;
+      deleteListButton.disabled = listFilter === "all" || listFilter === DEFAULT_LIST_ID;
+    }
+
+    function createList(name) {
+      const normalizedName = name.trim();
+
+      if (!normalizedName) {
+        return;
+      }
+
+      const exists = lists.some((list) => list.name.toLowerCase() === normalizedName.toLowerCase());
+
+      if (exists) {
+        listNameInput.value = "";
+        return;
+      }
+
+      lists.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        name: normalizedName
+      });
+
+      listNameInput.value = "";
+      saveLists();
+      renderListOptions();
+      renderTodos();
+    }
+
+    function deleteSelectedList() {
+      if (listFilter === "all" || listFilter === DEFAULT_LIST_ID) {
+        return;
+      }
+
+      const deletedListId = listFilter;
+      lists = lists.filter((list) => list.id !== deletedListId);
+      todos = todos.map((todo) => (
+        todo.listId === deletedListId
+          ? { ...todo, completed: true, listId: DEFAULT_LIST_ID }
+          : todo
+      ));
+      listFilter = "all";
+
+      saveLists();
+      saveTodos();
+      renderListOptions();
+      renderTodos();
+    }
+
+    function sortTodos(items) {
+      return [...items].sort((a, b) => (
+        PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
+          || a.dueDate.localeCompare(b.dueDate)
+          || a.order - b.order
+      ));
+    }
+
+    function runRowExitAnimation(item, onDone) {
+      let finished = false;
+      const finish = () => {
+        if (finished) {
+          return;
+        }
+
+        finished = true;
+        onDone();
+      };
+
+      item.classList.add("removing");
+      item.addEventListener("animationend", finish, { once: true });
+      setTimeout(finish, 260);
+    }
+
+    function getNextDueDate(dueDate, repeat) {
+      let nextDueDate = dueDate;
+      let guard = 0;
+
+      do {
+        if (repeat === "daily") {
+          nextDueDate = addDays(nextDueDate, 1);
+        } else if (repeat === "weekly") {
+          nextDueDate = addDays(nextDueDate, 7);
+        } else if (repeat === "monthly") {
+          nextDueDate = addMonths(nextDueDate, 1);
+        } else {
+          return dueDate;
+        }
+
+        guard += 1;
+      } while (nextDueDate <= getToday() && guard < 400);
+
+      return nextDueDate;
+    }
+
+    function createNextRecurringTodo(todo) {
+      if (todo.repeat === "none") {
+        return null;
+      }
+
+      return createTodo(
+        todo.text,
+        todo.priority,
+        getNextDueDate(todo.dueDate, todo.repeat),
+        todo.repeat,
+        todo.listId
+      );
+    }
+
+    function isOverdue(todo) {
+      return !todo.completed && todo.dueDate < getToday();
+    }
+
+    function matchesDateFilter(todo) {
+      if (dateFilters.includes("all")) {
+        return true;
+      }
+
+      const today = getToday();
+      const nextSevenDays = addDays(today, 7);
+
+      return dateFilters.some((filter) => {
+        if (filter === "today") {
+          return todo.dueDate === today;
+        }
+
+        if (filter === "next7") {
+          return todo.dueDate >= today && todo.dueDate <= nextSevenDays;
+        }
+
+        if (filter === "overdue") {
+          return isOverdue(todo);
+        }
+
+        return false;
+      });
+    }
+
+    function matchesListFilter(todo) {
+      return listFilter === "all" || todo.listId === listFilter;
+    }
+
+    function getReminderTodos() {
+      return sortTodos(todos.filter((todo) => (
+        !todo.completed && todo.dueDate <= getToday()
+      )));
+    }
+
+    function updateReminderButton() {
+      if (!("Notification" in window)) {
+        reminderToggleButton.textContent = "不支持提醒";
+        reminderToggleButton.disabled = true;
+        return;
+      }
+
+      if (Notification.permission === "granted") {
+        reminderToggleButton.textContent = "提醒已开启";
+        reminderToggleButton.disabled = false;
+        return;
+      }
+
+      if (Notification.permission === "denied") {
+        reminderToggleButton.textContent = "提醒已被拦截";
+        reminderToggleButton.disabled = true;
+        return;
+      }
+
+      reminderToggleButton.textContent = "开启提醒";
+      reminderToggleButton.disabled = false;
+    }
+
+    function setDateFilter(filter, mode = "toggle") {
+      if (filter === "all") {
+        dateFilters = ["all"];
+      } else if (mode === "replace") {
+        dateFilters = [filter];
+      } else {
+        dateFilters = dateFilters.filter((item) => item !== "all");
+
+        if (dateFilters.includes(filter)) {
+          dateFilters = dateFilters.filter((item) => item !== filter);
+        } else {
+          dateFilters.push(filter);
+        }
+
+        if (dateFilters.length === 0) {
+          dateFilters = ["all"];
+        }
+      }
+
+      filterButtons.forEach((button) => {
+        button.classList.toggle("active", dateFilters.includes(button.dataset.filter));
+      });
+      renderTodos();
+    }
+
+    function showDueReminder(force = false) {
+      if (!("Notification" in window) || Notification.permission !== "granted") {
+        return;
+      }
+
+      const reminderTodos = getReminderTodos();
+
+      if (reminderTodos.length === 0) {
+        if (force) {
+          alert("当前没有今日到期或已过期的未完成任务。");
+        }
+        return;
+      }
+
+      const today = getToday();
+
+      if (!force && localStorage.getItem(REMINDER_DATE_KEY) === today) {
+        return;
+      }
+
+      localStorage.setItem(REMINDER_DATE_KEY, today);
+
+      const overdueCount = reminderTodos.filter((todo) => todo.dueDate < today).length;
+      const todayCount = reminderTodos.length - overdueCount;
+      const body = [
+        todayCount ? `今日到期：${todayCount} 项` : "",
+        overdueCount ? `已过期：${overdueCount} 项` : "",
+        "点击查看待办事项。"
+      ].filter(Boolean).join("\n");
+
+      const notification = new Notification("待办事项提醒", {
+        body,
+        tag: "fresh-blue-todos-due",
+        renotify: true
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        setDateFilter(overdueCount > 0 && todayCount > 0 ? "today" : overdueCount > 0 ? "overdue" : "today", "replace");
+        if (overdueCount > 0 && todayCount > 0) {
+          setDateFilter("overdue");
+        }
+        document.querySelector("#active-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        notification.close();
+      };
+    }
+
+    async function enableReminders() {
+      if (!("Notification" in window)) {
+        alert("当前浏览器不支持系统通知。");
+        updateReminderButton();
+        return;
+      }
+
+      if (Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+
+      updateReminderButton();
+      showDueReminder(true);
+    }
+
+    function formatTodoLine(todo, index) {
+      return `${index + 1}. [${getListName(todo.listId)}] [${PRIORITY_LABELS[todo.priority]}] [${REPEAT_LABELS[todo.repeat]}] ${todo.dueDate} ${todo.text}`;
+    }
+
+    function appendExportSection(lines, title, sectionTodos) {
+      lines.push("", `${title}（${sectionTodos.length}）`);
+
+      if (sectionTodos.length === 0) {
+        lines.push("无");
+        return;
+      }
+
+      sectionTodos.forEach((todo, index) => {
+        lines.push(formatTodoLine(todo, index));
+      });
+    }
+
+    function formatTodosForExport(todoItems) {
+      const activeTodos = sortTodos(todoItems.filter((todo) => !todo.completed));
+      const completedTodos = sortTodos(todoItems.filter((todo) => todo.completed));
+      const lines = [
+        "待办事项导出",
+        `导出时间：${new Date().toLocaleString("zh-CN")}`
+      ];
+
+      appendExportSection(lines, "未完成", activeTodos);
+      appendExportSection(lines, "已完成", completedTodos);
+
+      return lines.join("\n");
+    }
+
+    function exportTodos() {
+      const blob = new Blob([formatTodosForExport(todos)], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `todos-${getToday()}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function updateDraggedOrder(list) {
+      const ids = Array.from(list.querySelectorAll(".todo-item")).map((item) => item.dataset.id);
+      todos = todos.map((todo) => {
+        const index = ids.indexOf(todo.id);
+
+        if (index === -1) {
+          return todo;
+        }
+
+        return { ...todo, order: index };
+      });
+
+      saveTodos();
+      renderTodos();
+    }
+
+    function startEditing(item) {
+      const todo = getTodo(item.dataset.id);
+      const textButton = item.querySelector(".todo-text");
+
+      if (!todo || !textButton) {
+        return;
+      }
+
+      editingTodoId = todo.id;
+      const editInput = document.createElement("textarea");
+      editInput.className = "edit-input";
+      editInput.value = todo.text;
+      editInput.maxLength = 120;
+      editInput.setAttribute("aria-label", `编辑 ${todo.text}`);
+      activeEditInput = editInput;
+
+      editInput.addEventListener("mousedown", (event) => {
+        event.stopPropagation();
+      });
+
+      editInput.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+
+      editInput.addEventListener("mouseup", (event) => {
+        event.stopPropagation();
+      });
+
+      editInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          commitEdit(todo.id, editInput.value, todo.text);
+        }
+
+        if (event.key === "Escape") {
+          event.preventDefault();
+          editingTodoId = "";
+          activeEditInput = null;
+          renderTodos();
+        }
+      });
+
+      textButton.replaceWith(editInput);
+      editInput.focus();
+      editInput.setSelectionRange(editInput.value.length, editInput.value.length);
+    }
+
+    function renderList(target, items) {
+      target.innerHTML = "";
+
+      items.forEach((todo) => {
+        const item = document.createElement("li");
+        item.className = `todo-item priority-${todo.priority}${todo.completed ? " completed" : ""}${isOverdue(todo) ? " overdue" : ""}`;
+        item.classList.toggle("entering", todo.id === addedTodoId);
+        item.dataset.id = todo.id;
+
+        const checkbox = document.createElement("input");
+        checkbox.className = "todo-checkbox";
+        checkbox.type = "checkbox";
+        checkbox.checked = todo.completed;
+        checkbox.setAttribute("aria-label", `标记 ${todo.text} 为${todo.completed ? "未完成" : "已完成"}`);
+
+        const dragHandle = document.createElement("span");
+        dragHandle.className = "drag-handle";
+        dragHandle.textContent = "⠿";
+        dragHandle.draggable = true;
+        dragHandle.setAttribute("aria-label", `拖拽排序 ${todo.text}`);
+        dragHandle.setAttribute("role", "button");
+
+        const text = document.createElement("button");
+        text.className = "todo-text";
+        text.type = "button";
+        text.textContent = todo.text;
+        text.setAttribute("aria-label", `编辑 ${todo.text}`);
+
+        const prioritySelect = document.createElement("select");
+        prioritySelect.className = `priority-select priority-${todo.priority}`;
+        prioritySelect.setAttribute("aria-label", `设置 ${todo.text} 的优先级`);
+
+        Object.entries(PRIORITY_LABELS).forEach(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = value === todo.priority;
+          prioritySelect.appendChild(option);
+        });
+
+        const dueDate = document.createElement("input");
+        dueDate.className = "due-date-input";
+        dueDate.type = "date";
+        dueDate.value = todo.dueDate;
+        dueDate.setAttribute("aria-label", `设置 ${todo.text} 的截止日期`);
+
+        const listSelect = document.createElement("select");
+        listSelect.className = "list-select";
+        listSelect.setAttribute("aria-label", `设置 ${todo.text} 的所属列表`);
+
+        lists.forEach((list) => {
+          const option = document.createElement("option");
+          option.value = list.id;
+          option.textContent = list.name;
+          option.selected = list.id === todo.listId;
+          listSelect.appendChild(option);
+        });
+
+        const repeatSelect = document.createElement("select");
+        repeatSelect.className = "repeat-select";
+        repeatSelect.setAttribute("aria-label", `设置 ${todo.text} 的重复规则`);
+
+        Object.entries(REPEAT_LABELS).forEach(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = value === todo.repeat;
+          repeatSelect.appendChild(option);
+        });
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "delete-button";
+        deleteButton.type = "button";
+        deleteButton.textContent = "删除";
+        deleteButton.setAttribute("aria-label", `删除 ${todo.text}`);
+
+        item.append(checkbox, dragHandle, dueDate, text, listSelect, prioritySelect, repeatSelect, deleteButton);
+        target.appendChild(item);
+      });
+    }
+
+    function renderTodos() {
+      const activeTodos = todos.filter((todo) => !todo.completed);
+      const completedTodos = todos.filter((todo) => todo.completed);
+      const matchesSearch = (todo) => (
+        todo.text.toLowerCase().includes(searchTerm)
+          || getListName(todo.listId).toLowerCase().includes(searchTerm)
+      );
+      const matchesFilters = (todo) => (
+        matchesSearch(todo) && matchesDateFilter(todo) && matchesListFilter(todo)
+      );
+      const matchesCompletedFilters = (todo) => (
+        matchesSearch(todo) && matchesDateFilter(todo)
+      );
+      const filteredActiveTodos = sortTodos(activeTodos.filter(matchesFilters));
+      const filteredCompletedTodos = sortTodos(completedTodos.filter(matchesCompletedFilters));
+
+      renderList(activeList, filteredActiveTodos);
+      renderList(completedList, filteredCompletedTodos);
+
+      completedCount.textContent = completedTodos.length;
+      activeCount.textContent = activeTodos.length;
+      activeEmpty.textContent = searchTerm || !dateFilters.includes("all") || listFilter !== "all"
+        ? "没有匹配的未完成任务。"
+        : "暂时没有未完成任务。";
+      completedEmpty.textContent = searchTerm || !dateFilters.includes("all") || listFilter !== "all"
+        ? "没有匹配的已完成任务。"
+        : "暂时没有已完成任务。";
+      activeEmpty.classList.toggle("hidden", filteredActiveTodos.length > 0);
+      completedEmpty.classList.toggle("hidden", filteredCompletedTodos.length > 0);
+      clearCompletedButton.disabled = completedTodos.length === 0;
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      saveActiveEdit();
+      const text = input.value.trim();
+
+      if (!text) {
+        return;
+      }
+
+      const todo = createTodo(
+        text,
+        priorityInput.value,
+        dueDateInput.value || getToday(),
+        repeatInput.value,
+        taskListInput.value || DEFAULT_LIST_ID
+      );
+
+      addedTodoId = todo.id;
+      todos.unshift(todo);
+      input.value = "";
+      priorityInput.value = "medium";
+      dueDateInput.value = getToday();
+      repeatInput.value = "none";
+      saveTodos();
+      renderTodos();
+      addedTodoId = "";
+      input.focus();
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    function handleTodoAction(event) {
+      const item = event.target.closest(".todo-item");
+
+      if (!item) {
+        return;
+      }
+
+      if (editingTodoId) {
+        return;
+      }
+
+      if (event.target.matches(".edit-input, .priority-select, .due-date-input, .repeat-select, .list-select")) {
+        return;
+      }
+
+      if (event.target.matches(".todo-checkbox")) {
+        const currentTodo = getTodo(item.dataset.id);
+        const isCompleting = event.target.checked;
+        const isRestoring = currentTodo?.completed && !isCompleting;
+        const nextTodo = currentTodo && isCompleting
+          ? createNextRecurringTodo(currentTodo)
+          : null;
+
+        const updateCompletion = () => {
+          if (nextTodo) {
+            todos = todos.filter((todo) => todo.id !== item.dataset.id);
+          } else {
+            todos = todos.map((todo) => (
+              todo.id === item.dataset.id
+                ? { ...todo, completed: isCompleting }
+                : todo
+            ));
+          }
+
+          if (nextTodo) {
+            addedTodoId = nextTodo.id;
+            todos.unshift(nextTodo);
+          } else if (isRestoring && currentTodo) {
+            addedTodoId = currentTodo.id;
+          }
+
+          saveTodos();
+          renderTodos();
+          addedTodoId = "";
+        };
+
+        if (isCompleting || isRestoring) {
+          runRowExitAnimation(item, updateCompletion);
+        } else {
+          updateCompletion();
+        }
+
+        return;
+      }
+
+      if (event.target.matches(".delete-button")) {
+        runRowExitAnimation(item, () => {
+          todos = todos.filter((todo) => todo.id !== item.dataset.id);
+          saveTodos();
+          renderTodos();
+        });
+        return;
+      }
+
+      if (event.target.matches(".todo-text")) {
+        startEditing(item);
+        return;
+      }
+
+      saveTodos();
+      renderTodos();
+    }
+
+    activeList.addEventListener("click", handleTodoAction);
+    completedList.addEventListener("click", handleTodoAction);
+
+    function handlePriorityChange(event) {
+      const item = event.target.closest(".todo-item");
+
+      if (!item || !event.target.matches(".priority-select")) {
+        return;
+      }
+
+      saveActiveEdit();
+      updateTodoPriority(item.dataset.id, event.target.value);
+    }
+
+    activeList.addEventListener("change", handlePriorityChange);
+    completedList.addEventListener("change", handlePriorityChange);
+
+    function handleDueDateChange(event) {
+      const item = event.target.closest(".todo-item");
+
+      if (!item || !event.target.matches(".due-date-input")) {
+        return;
+      }
+
+      saveActiveEdit();
+      updateTodoDueDate(item.dataset.id, event.target.value || getToday());
+    }
+
+    activeList.addEventListener("change", handleDueDateChange);
+    completedList.addEventListener("change", handleDueDateChange);
+
+    function handleRepeatChange(event) {
+      const item = event.target.closest(".todo-item");
+
+      if (!item || !event.target.matches(".repeat-select")) {
+        return;
+      }
+
+      saveActiveEdit();
+      updateTodoRepeat(item.dataset.id, event.target.value);
+    }
+
+    activeList.addEventListener("change", handleRepeatChange);
+    completedList.addEventListener("change", handleRepeatChange);
+
+    function handleListChange(event) {
+      const item = event.target.closest(".todo-item");
+
+      if (!item || !event.target.matches(".list-select")) {
+        return;
+      }
+
+      saveActiveEdit();
+      updateTodoList(item.dataset.id, event.target.value);
+    }
+
+    activeList.addEventListener("change", handleListChange);
+    completedList.addEventListener("change", handleListChange);
+
+    function handleDragStart(event) {
+      const handle = event.target.closest(".drag-handle");
+      const item = handle?.closest(".todo-item");
+
+      if (!handle || !item) {
+        event.preventDefault();
+        return;
+      }
+
+      draggedTodoId = item.dataset.id;
+      item.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedTodoId);
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      const item = event.target.closest(".todo-item");
+
+      if (!draggedTodoId || !item || item.dataset.id === draggedTodoId) {
+        return;
+      }
+
+      const rect = item.getBoundingClientRect();
+      const insertAfter = event.clientY > rect.top + rect.height / 2;
+      item.parentElement.insertBefore(
+        document.querySelector(`[data-id="${draggedTodoId}"]`),
+        insertAfter ? item.nextSibling : item
+      );
+    }
+
+    function handleDragEnd(event) {
+      const item = event.target.closest(".todo-item");
+
+      if (item) {
+        item.classList.remove("dragging");
+        updateDraggedOrder(item.parentElement);
+      }
+
+      draggedTodoId = "";
+    }
+
+    [activeList, completedList].forEach((list) => {
+      list.addEventListener("dragstart", handleDragStart);
+      list.addEventListener("dragover", handleDragOver);
+      list.addEventListener("dragend", handleDragEnd);
+    });
+
+    clearCompletedButton.addEventListener("click", () => {
+      todos = todos.filter((todo) => !todo.completed);
+      saveTodos();
+      renderTodos();
+    });
+
+    searchInput.addEventListener("input", () => {
+      saveActiveEdit();
+      searchTerm = searchInput.value.trim().toLowerCase();
+      renderTodos();
+    });
+
+    exportTodosButton.addEventListener("click", () => {
+      saveActiveEdit();
+      exportTodos();
+    });
+
+    reminderToggleButton.addEventListener("click", enableReminders);
+
+    [input, priorityInput, dueDateInput, repeatInput, taskListInput, searchInput, listNameInput].forEach((control) => {
+      control.addEventListener("focus", () => {
+        saveActiveEdit();
+      });
+    });
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        saveActiveEdit();
+        setDateFilter(button.dataset.filter);
+      });
+    });
+
+    listFilterInput.addEventListener("change", () => {
+      saveActiveEdit();
+      listFilter = listFilterInput.value;
+      deleteListButton.disabled = listFilter === "all" || listFilter === DEFAULT_LIST_ID;
+      renderTodos();
+    });
+
+    addListButton.addEventListener("click", () => {
+      saveActiveEdit();
+      createList(listNameInput.value);
+    });
+
+    deleteListButton.addEventListener("click", () => {
+      saveActiveEdit();
+      deleteSelectedList();
+    });
+
+    listNameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveActiveEdit();
+        createList(listNameInput.value);
+      }
+    });
+
+    backgroundInput.addEventListener("change", () => {
+      const [file] = backgroundInput.files;
+
+      if (!file) {
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.addEventListener("load", () => {
+        try {
+          localStorage.setItem(BACKGROUND_KEY, reader.result);
+          applyBackground(reader.result);
+        } catch {
+          alert("图片太大，无法保存到浏览器本地存储。");
+        }
+
+        backgroundInput.value = "";
+      });
+
+      reader.readAsDataURL(file);
+    });
+
+    resetBackgroundButton.addEventListener("click", () => {
+      localStorage.removeItem(BACKGROUND_KEY);
+      applyBackground("");
+      backgroundInput.value = "";
+    });
+
+    loadBackground();
+    renderListOptions();
+    updateReminderButton();
+    dueDateInput.value = getToday();
+    renderTodos();
+    showDueReminder();
+    setInterval(showDueReminder, 60000);
+  </script>
+</body>
+</html>
